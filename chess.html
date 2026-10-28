@@ -1,0 +1,132 @@
+<!DOCTYPE html><html lang="ar" dir="rtl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><title>شطرنج</title>
+<style>
+:root{--s:min(11.6vw,56px);--bg:#0f2a2e;--pn:#173b40;--ac:#f0b429;--tx:#f4efe4}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+body{margin:0;background:var(--bg);color:var(--tx);font-family:"Segoe UI",Tahoma,sans-serif;text-align:center;padding:env(safe-area-inset-top) 8px env(safe-area-inset-bottom)}
+h1{margin:10px 0 2px;font-size:30px;color:var(--ac)}
+#inf{font-size:13px;color:#b9d0cc;min-height:20px}
+button{background:var(--pn);color:var(--tx);border:1px solid #2b5a60;border-radius:10px;padding:9px 12px;margin:3px;font:inherit;font-size:14px}
+button.on{background:var(--ac);color:#1a1a1a;border-color:var(--ac);font-weight:700}
+#bd{display:grid;grid-template-columns:repeat(8,var(--s));direction:ltr;margin:8px auto;width:max-content;border:4px solid #07181a;border-radius:6px}
+.sq{width:var(--s);height:var(--s);font-size:calc(var(--s)*.8);display:flex;align-items:center;justify-content:center;position:relative;line-height:1}
+.l{background:#e9dcc3}.d{background:#4f7a72}
+.sel{background:#f0b429!important}.lm{box-shadow:inset 0 0 0 3px #f0b42999}
+.w{color:#fff;text-shadow:0 0 3px #000,0 0 3px #000,0 0 1px #000}.k{color:#0d0d0d;text-shadow:0 0 2px #ffffff99}
+.dot::after{content:"";position:absolute;width:30%;height:30%;border-radius:50%;background:#c2410c}
+.hint{box-shadow:inset 0 0 0 4px #22c55e}
+#st{min-height:24px;font-weight:700}#ex{min-height:44px;font-size:14px;color:#d7e6e3;padding:0 6px;max-width:460px;margin:0 auto}
+#ov{display:none;position:fixed;inset:0;background:#000a;align-items:center;justify-content:center;z-index:9}
+#ov>div{background:var(--pn);padding:20px;border-radius:14px;max-width:86vw;border:2px solid var(--ac)}
+#ov p{margin:0 0 12px;font-size:18px}
+textarea{width:72vw;max-width:340px;height:70px;font-size:11px;direction:ltr;margin-bottom:8px}
+</style></head><body>
+<h1>♟︎ شطرنج</h1><div id="inf"></div>
+<div><button id="m_ai" onclick="sm('ai')">ضد الذكاء</button><button id="m_fr" onclick="sm('fr')">ضد صديق (نفس الهاتف)</button><button id="m_co" onclick="sm('co')">ضد المدرب</button><button id="m_on" onclick="net()">📶 ضد صديق (واي فاي)</button></div>
+<div id="df"><button id="d1" onclick="sd(1)">سهل</button><button id="d2" onclick="sd(2)">متوسط</button><button id="d3" onclick="sd(3)">صعب</button></div>
+<div id="st"></div><div id="bd"></div><div id="ex"></div>
+<div><button onclick="newG()">لعبة جديدة</button><button onclick="hi()">💡 اقتراح</button><button onclick="cs()">🏆 كأس</button><button onclick="sh()">📤 مشاركة ID</button></div>
+<div id="ov"></div>
+<script>
+const $=id=>document.getElementById(id),V={p:100,n:320,b:330,r:500,q:900,k:0},NM={p:'بيدق',n:'حصان',b:'فيل',r:'قلعة',q:'وزير',k:'ملك'},
+GL={p:'♟︎',n:'♞︎',b:'♝︎',r:'♜︎',q:'♛︎',k:'♚︎'},
+N8=[[1,2],[2,1],[-1,2],[-2,1],[1,-2],[2,-1],[-1,-2],[-2,-1]],K8=[[1,0],[-1,0],[0,1],[0,-1],[1,1],[1,-1],[-1,1],[-1,-1]];
+let P;try{P=JSON.parse(localStorage.getItem('shp'))}catch(e){}
+P=P||{id:String(100000+Math.floor(Math.random()*900000)),w:0,title:0};
+const sv=()=>{try{localStorage.setItem('shp',JSON.stringify(P))}catch(e){}};sv();
+let me='w',dc=null,pc=null,S,mode='ai',diff=2,sel=-1,tg=[],last=null,hint=null,over=0,busy=0,cup=0,L=[];
+const G0=()=>({b:'rnbqkbnrpppppppp'.split('').concat(Array(32).fill(''),'PPPPPPPPRNBQKBNR'.split('')),t:'w',c:'KQkq',e:-1});
+const sqn=i=>'abcdefgh'[i&7]+(8-(i>>3));
+function att(b,s,by){const r=s>>3,c=s&7,W=by=='w',g=(R,C)=>R>=0&&R<8&&C>=0&&C<8?b[R*8+C]:null,is=(p,x)=>p&&(W?p===x.toUpperCase():p===x);
+for(const dc of[-1,1])if(is(g(r+(W?1:-1),c+dc),'p'))return 1;
+for(const[a,d]of N8)if(is(g(r+a,c+d),'n'))return 1;
+for(const[a,d]of K8){if(is(g(r+a,c+d),'k'))return 1;let R=r+a,C=c+d,p;while((p=g(R,C))===''){R+=a;C+=d}
+if(p&&(is(p,'q')||is(p,a&&d?'b':'r')))return 1}return 0}
+function gen(S,all){const{b,t,c,e}=S,W=t=='w',m=[],pr=W?0:7;
+for(let f=0;f<64;f++){const p=b[f];if(!p||(p<'a')!==W)continue;const r=f>>3,cc=f&7,l=p.toLowerCase();
+const ad=(t,x={})=>{if(l=='p'&&(t>>3)==pr)for(const k of all?'qrbn':'q')m.push({f,t,pr:k,...x});else m.push({f,t,...x})};
+if(l=='p'){const d=W?-1:1,one=f+d*8;if(!b[one]){ad(one);if(r==(W?6:1)&&!b[one+d*8])ad(one+d*8,{d2:1})}
+for(const dc of[-1,1]){const C=cc+dc;if(C<0||C>7)continue;const t=one+dc;if(b[t]&&(b[t]<'a')!==W)ad(t);else if(t==e)ad(t,{ep:1})}}
+else{const sl=l!='n'&&l!='k',ds=l=='n'?N8:l=='b'?K8.filter(x=>x[0]&&x[1]):l=='r'?K8.filter(x=>!x[0]||!x[1]):K8;
+for(const[a,d]of ds){let R=r+a,C=cc+d;while(R>=0&&R<8&&C>=0&&C<8){const t=R*8+C,q=b[t];if(!q)ad(t);else{if((q<'a')!==W)ad(t);break}if(!sl)break;R+=a;C+=d}}
+if(l=='k'&&f==(W?60:4)){const K=W?'K':'k',R=W?'R':'r';
+if(c.includes(K)&&!b[f+1]&&!b[f+2]&&b[f+3]==R)m.push({f,t:f+2,cs:1});
+if(c.includes(W?'Q':'q')&&!b[f-1]&&!b[f-2]&&!b[f-3]&&b[f-4]==R)m.push({f,t:f-2,cs:1})}}}return m}
+function mk(S,m){const b=S.b.slice(),W=S.t=='w';let c=S.c,e=-1;
+b[m.t]=m.pr?(W?m.pr.toUpperCase():m.pr):b[m.f];b[m.f]='';
+if(m.ep)b[m.t+(W?8:-8)]='';
+if(m.cs){const k=m.t>m.f,a=k?m.t+1:m.t-2;b[k?m.t-1:m.t+1]=b[a];b[a]=''}
+if(m.d2)e=(m.f+m.t)/2;
+for(const s of[m.f,m.t]){if(s==60)c=c.replace(/[KQ]/g,'');if(s==4)c=c.replace(/[kq]/g,'');if(s==63)c=c.replace('K','');if(s==56)c=c.replace('Q','');if(s==7)c=c.replace('k','');if(s==0)c=c.replace('q','')}
+return{b,t:W?'b':'w',c,e}}
+const chk=S=>att(S.b,S.b.indexOf(S.t=='w'?'K':'k'),S.t=='w'?'b':'w');
+function legal(S,all){const o=S.t=='w'?'b':'w',K=S.t=='w'?'K':'k';
+return gen(S,all).filter(m=>{if(m.cs&&(att(S.b,m.f,o)||att(S.b,(m.f+m.t)/2,o)))return 0;const n=mk(S,m);return!att(n.b,n.b.indexOf(K),o)})}
+function ev(S){let s=0;for(let i=0;i<64;i++){const p=S.b[i];if(!p)continue;const l=p.toLowerCase(),w=p<'a',r=i>>3,c=i&7;let v=V[l];
+const d=7-Math.abs(r-3.5)-Math.abs(c-3.5);v+=d*(l=='n'||l=='b'?4:l=='p'?3:l=='q'?1:0);
+if(l=='p')v+=(w?6-r:r-1)*5;if(l=='k'&&r==(w?7:0)&&(c<3||c>5))v+=20;s+=w?v:-v}return S.t=='w'?s:-s}
+const cp=(S,m)=>V[(S.b[m.t]||(m.ep?'p':'')).toLowerCase()]||0;
+function ab(S,d,a,b){if(!d)return ev(S);const l=legal(S);if(!l.length)return chk(S)?-99999-d:0;
+l.sort((x,y)=>cp(S,y)-cp(S,x));for(const m of l){const s=-ab(mk(S,m),d-1,-b,-a);if(s>=b)return b;if(s>a)a=s}return a}
+function best(S,d){const l=legal(S);if(!l.length)return{};if(d==1&&Math.random()<.3)return{m:l[Math.random()*l.length|0]};
+l.sort(()=>Math.random()-.5);l.sort((x,y)=>cp(S,y)-cp(S,x));let bm=l[0],ba=-1e9;
+for(const m of l){const s=-ab(mk(S,m),d-1,-1e9,-ba);if(s>ba){ba=s;bm=m}}return{m:bm}}
+function why(S,m){const p=S.b[m.f].toLowerCase(),q=S.b[m.t]||(m.ep?'P':''),n=mk(S,m),o=[];
+if(m.cs)o.push('تبييت: أحمي الملك وأُدخل القلعة إلى اللعب');
+if(m.pr)o.push('أرقّي البيدق إلى وزير');
+if(q)o.push('آخذ '+NM[q.toLowerCase()]+(att(n.b,m.t,n.t)?' وقد يحدث تبادل':' والمربع آمن'));
+if(chk(n))o.push(legal(n).length?'أعطي كش لأُجبرك على الدفاع':'كش مات!');
+if((p=='n'||p=='b')&&(m.f>>3)==(S.t=='w'?7:0))o.push('أطوّر قطعة من صفّها الأول');
+if([27,28,35,36].includes(m.t))o.push('أسيطر على مركز اللوحة');
+if(!o.length)o.push('أحسّن موقع القطعة وأحافظ على أمان قطعي');
+return NM[p]+' إلى '+sqn(m.t)+': '+o.join('، ')}
+function R(){const bd=$('bd');bd.innerHTML='';const fl=mode=='on'&&me=='b';for(let k=0;k<64;k++){const i=fl?63-k:k,p=S.b[i],d=document.createElement('div');
+d.className='sq '+(((i>>3)+(i&7))%2?'d':'l')+(i==sel?' sel':'')+(last&&(i==last.f||i==last.t)?' lm':'')+(tg.some(m=>m.t==i)?' dot':'')+(hint&&(i==hint.f||i==hint.t)?' hint':'');
+if(p){const s=document.createElement('span');s.className=p<'a'?'w':'k';s.textContent=GL[p.toLowerCase()];d.append(s)}
+d.onclick=()=>tap(i);bd.append(d)}}
+function U(){const lv=Math.min(50,1+Math.floor(P.w/5));
+$('inf').textContent='المستوى '+lv+' · انتصارات '+P.w+' ('+(lv>=50?'أقصى مستوى':P.w%5+'/5')+') · ID: '+P.id+(P.title?' · 🏆 أفضل لاعب شطرنج':'');
+['ai','fr','co','on'].forEach(k=>$('m_'+k).className=mode==k&&!cup?'on':'');
+[1,2,3].forEach(k=>$('d'+k).className=diff==k?'on':'');$('df').style.display=mode=='ai'&&!cup?'block':'none'}
+function ov(h){const o=$('ov');o.innerHTML='<div>'+h+'</div>';o.style.display='flex'}
+const cl=()=>$('ov').style.display='none';
+const mine=()=>mode=='fr'||(mode=='on'?S.t==me:S.t=='w');
+function tap(i){if(over||busy||!mine())return;hint=null;const m=tg.filter(x=>x.t==i);
+if(sel>=0&&m.length){if(m[0].pr)return promo(m);return play(m[0])}
+const p=S.b[i];if(p&&(p<'a')==(S.t=='w')){sel=i;tg=L.filter(x=>x.f==i)}else{sel=-1;tg=[]}R()}
+function promo(vs){ov('<p>اختر القطعة</p>');['q','r','b','n'].forEach(k=>{const b=document.createElement('button');b.textContent=GL[k];b.style.fontSize='34px';b.onclick=()=>{cl();play(vs.find(x=>x.pr==k))};$('ov').firstChild.append(b)})}
+function play(m,rem){if(mode=='on'&&!rem&&dc&&dc.readyState=='open')dc.send(JSON.stringify({f:m.f,t:m.t,pr:m.pr||''}));S=mk(S,m);last=m;sel=-1;tg=[];hint=null;$('ex').textContent='';aft()}
+function aft(){L=legal(S,1);const ck=chk(S);R();
+if(!L.length)return end(ck?(S.t=='w'?'b':'w'):'d');
+$('st').textContent=(cup?'كأس: الدور '+cup+'/3 · ':'')+(S.t=='w'?'دور الأبيض':'دور الأسود')+(ck?' — كش!':'');
+if((mode=='ai'||mode=='co')&&S.t=='b'){busy=1;setTimeout(ai,80)}}
+function ai(){const m=best(S,mode=='co'?3:diff).m;busy=0;if(!m)return;const x=mode=='co'?'🎓 المدرب: '+why(S,m):'';play(m);if(x)$('ex').textContent=x}
+function hi(){if(over||busy||!mine())return;const m=best(S,3).m;if(!m)return;hint=m;sel=-1;tg=[];R();$('ex').textContent='💡 '+why(S,m)}
+function end(r){over=1;let t=r=='d'?'تعادل (طريق مسدود)':r=='w'?'فاز الأبيض':'فاز الأسود',x='';
+if(mode=='fr'||mode=='on')t=r=='d'?t:'كش مات! '+t;
+else{const me=r=='w';
+if(r=='d')x=cup?'<br>تعادل — يُعاد الدور':'';
+else if(!me){t='خسرت';if(cup){x='<br>خرجت من البطولة';cup=0}}
+else{t='🎉 فزت!';if(mode=='ai'){const a=Math.floor(P.w/5);P.w++;if(Math.floor(P.w/5)>a)x+='<br>⬆️ ارتفع مستواك إلى '+Math.min(50,1+Math.floor(P.w/5));
+if(cup==3){P.title=1;x+='<br>🏆 بطل الكأس! لقبك: أفضل لاعب شطرنج';cup=0}else if(cup){cup++;x+='<br>تأهلت إلى الدور '+cup}}}
+sv()}
+U();ov('<p>'+t+x+'</p><button onclick="cl();newG()">متابعة</button>')}
+function newG(f){if(mode=='on'&&dc&&!f)return alert('لبدء لعبة جديدة أعد الاتصال من زر الواي فاي');if(mode!='on'&&dc){try{pc.close()}catch(e){}dc=null}S=G0();sel=-1;tg=[];last=null;hint=null;over=0;busy=0;if(cup)diff=cup;$('ex').textContent='';U();aft()}
+function sm(m){mode=m;cup=0;newG()}
+function sd(d){diff=d;cup=0;newG()}
+function cs(){mode='ai';cup=1;newG()}
+function sh(){const t='العب معي «شطرنج»! رقمي: '+P.id;if(navigator.share)navigator.share({text:t}).catch(()=>{});else{try{navigator.clipboard.writeText(t)}catch(e){}alert('رقمك: '+P.id)}}
+function wt(){return new Promise(r=>{if(pc.iceGatheringState=='complete')return r();pc.onicegatheringstatechange=()=>pc.iceGatheringState=='complete'&&r();setTimeout(r,4000)})}
+function mkpc(){pc=new RTCPeerConnection({iceServers:[{urls:'stun:stun.l.google.com:19302'}]})}
+function setdc(c){dc=c;c.onopen=()=>{cl();mode='on';cup=0;newG(1)};c.onclose=()=>{if(!over){over=1;$('st').textContent='انقطع الاتصال'}};
+c.onmessage=e=>{const o=JSON.parse(e.data),m=L.find(x=>x.f==o.f&&x.t==o.t&&(x.pr||'')==o.pr);if(m)play(m,1)}}
+const code=()=>btoa(JSON.stringify(pc.localDescription));
+function net(){ov('<p>اللعب عبر الواي فاي</p><button onclick="hst()">أنشئ لعبة (أبيض)</button><button onclick="gst()">انضم للعبة (أسود)</button>')}
+async function hst(){me='w';mkpc();setdc(pc.createDataChannel('c'));await pc.setLocalDescription(await pc.createOffer());await wt();
+ov('<p>1) أرسل هذا الرمز لصديقك</p><textarea id="cd" readonly>'+code()+'</textarea><br><button onclick="cp1()">نسخ / مشاركة</button><p>2) الصق ردّه هنا</p><textarea id="rp"></textarea><br><button onclick="fin()">اتصال</button>')}
+function cp1(){const t=$('cd').value;if(navigator.share)navigator.share({text:t}).catch(()=>{});else{try{navigator.clipboard.writeText(t)}catch(e){}alert('تم النسخ')}}
+async function fin(){try{await pc.setRemoteDescription(JSON.parse(atob($('rp').value.trim())))}catch(e){alert('الرمز غير صحيح')}}
+function gst(){me='b';ov('<p>الصق رمز صديقك</p><textarea id="rp"></textarea><br><button onclick="ans()">إنشاء الرد</button>')}
+async function ans(){try{mkpc();pc.ondatachannel=e=>setdc(e.channel);await pc.setRemoteDescription(JSON.parse(atob($('rp').value.trim())));await pc.setLocalDescription(await pc.createAnswer());await wt();
+ov('<p>أرسل هذا الرد لصديقك ثم انتظر الاتصال</p><textarea id="cd" readonly>'+code()+'</textarea><br><button onclick="cp1()">نسخ / مشاركة</button>')}catch(e){alert('الرمز غير صحيح')}}
+newG();
+</script></body></html>
