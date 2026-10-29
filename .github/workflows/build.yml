@@ -21,6 +21,8 @@ jobs:
           npm install @capacitor/core@6 @capacitor/cli@6 @capacitor/android@6
           mkdir -p www
           cp chess.html www/index.html
+          cp plus.js www/plus.js
+          sed -i 's#</body>#<script src="plus.js"></script></body>#' www/index.html
           npx cap init "شطرنج" com.shatranj.app --web-dir=www
           npx cap add android
           npx cap sync android
